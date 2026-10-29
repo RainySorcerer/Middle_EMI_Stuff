@@ -204,6 +204,8 @@ The maintained list lives in [`docs/known-bugs.md`](docs/known-bugs.md). Highlig
 ## Cleanup notes
 
 - Old demo files were deleted; do not resurrect `lib/data.ts` or the old route groups.
+- Local editor/agent files (`.opencode/`), the original brief (`prompt.md`) and the source PRD PDF were removed from the repo; `.opencode/` is now gitignored. They remain in older commits unless history is rewritten.
+- `site/` is the static landing page published to GitHub Pages by `.github/workflows/pages.yml`. It is plain HTML/CSS, not a Next.js build, and links to the app via the `APP_URL` repository variable (`https://app.example.com` is the placeholder).
 - `.next-*/` build directories and `data/` are gitignored.
 - `next.config.mjs` keeps security headers and a 12 MB server-action body limit (8 MB PDFs plus multipart overhead).
 - The landing page and insights report use dark green panels. Global `h1–h4` colors default to dark ink, so any heading on a dark panel needs an explicit light text class.

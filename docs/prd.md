@@ -2,7 +2,7 @@
 
 **Working name:** PaisaPilot · **Version:** 0.1 · **Owner:** Product · **Status:** Draft
 
-> Source: `PRD AI Personal Finance Optimizer for India (1).pdf` (6 pages). Text extracted and formatted for the repository; content unchanged in substance.
+> Source: the product requirements document for PaisaPilot; content unchanged in substance.
 
 ## 1. Overview
 

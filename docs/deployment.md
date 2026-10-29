@@ -15,6 +15,37 @@ What you actually need to provide:
 
 Rough size: ~512 MB RAM and <1 GB disk is plenty for a few hundred beta users.
 
+### Hosting shape: Pages for the front door, Debian for the app
+
+GitHub Pages is static-only: it cannot run server actions, sessions or SQLite, so
+the app itself cannot live there. The recommended split is:
+
+| Piece | Where | What it is |
+| --- | --- | --- |
+| Landing page | GitHub Pages (`site/`) | Static HTML/CSS, no data, links into the app. |
+| App + database | Debian server | The Next.js process and `paisapilot.db`. |
+
+The repo contains `site/` and `.github/workflows/pages.yml`. On every push that
+touches `site/`, the workflow publishes that folder. Set the app origin once under
+**Settings → Secrets and variables → Actions → Variables** as `APP_URL`
+(for example `https://paisapilot.example.com`); the workflow rewrites the
+placeholder links at deploy time. Without `APP_URL` the page still deploys, but
+its buttons point at `https://app.example.com`.
+
+Then enable **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+The page appears at `https://<user>.github.io/<repo>/`.
+
+Two practical notes:
+
+- GitHub Pages on a **private** repository needs GitHub Pro/Team. On the free
+  plan, make the repo public or publish the landing page elsewhere.
+- Do not point a custom domain at Pages *and* at the app. If you want
+  `www.example.com` for the landing page, put the app on `app.example.com` and
+  keep the session cookie on that host.
+
+The app on Debian follows Option A below, with `APP_URL`'s host as the Caddy site
+address.
+
 ---
 
 ## Option A — single VPS (recommended for a beta)

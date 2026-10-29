@@ -249,6 +249,12 @@ Full step-by-step guide — VPS with systemd + Caddy, Docker, managed platforms,
 backups, restore, upgrades and the security checklist:
 [`docs/deployment.md`](docs/deployment.md).
 
+**Hosting split:** the deployable app is the Node process. The static landing page
+in `site/` is published to GitHub Pages by `.github/workflows/pages.yml` and links
+to the app on the Debian host. Pages cannot run the app itself. Set the app
+origin as the `APP_URL` repository variable (see
+[split hosting](docs/deployment.md#hosting-shape-pages-for-the-front-door-debian-for-the-app)).
+
 There is no background worker, file storage or external queue. Uploaded files are parsed in memory.
 
 ## Limitations

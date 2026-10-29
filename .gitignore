@@ -29,3 +29,8 @@ yarn-error.log*
 .vercel
 *.tsbuildinfo
 coverage/
+
+# local editor/agent scratch
+.opencode/
+.idea/
+.vscode/

@@ -36,6 +36,7 @@ row says so. Severity is about impact on a beta user, not on a public launch.
 | 20 | Medium | PDF import | **Extraction is model-assisted and unverified.** Gemini returns rows that are validated locally for date, amount and direction, but totals are not reconciled against the statement and faint or overlapping lines can be skipped. Plain PDFs (including scans) are uploaded to Google; only rows are stored. 8 MB / 24 pages / 2,000 rows / 10 imports per user per hour. There is no PDF path without `GEMINI_API_KEY`. |
 | 21 | Low | PDF import | **Encrypted scans do not work.** A password-protected PDF is decrypted locally and only its text layer is sent, so a locked image-only statement fails with "no machine-readable text". The user has to export a CSV or unlock and re-save the file. |
 | 22 | Low | AI narration | **Gemini is now tried first, then Claude, then OpenAI.** Only the first configured provider is used; a provider that fails falls straight through to the local analyst (see #8). PDF calls disable Gemini "thinking" and cap output at 8,192 tokens, so very long statements can truncate and fail rather than split across calls. |
+| 23 | Medium | PDF import | **PDF statement upload does not work in this build.** Uploading a PDF fails or returns no transactions, whatever the file or password. Export the same period as CSV and upload that instead. This is intentional for the beta and is not scheduled for a fix. |
 
 ## Fixed in this cut
 

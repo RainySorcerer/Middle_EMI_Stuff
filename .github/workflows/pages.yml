@@ -1,0 +1,52 @@
+name: Deploy landing page
+
+# GitHub Pages only serves static files. This workflow publishes `site/` — the
+# landing page that links to the real app on the Debian host. It never builds
+# the Next.js app, because Pages cannot run server actions, sessions or SQLite.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Set APP_URL under Settings -> Secrets and variables -> Actions ->
+      # Variables (for example https://paisapilot.example.com). Without it the
+      # links stay on the placeholder and the page still deploys.
+      - name: Point the page at the app
+        env:
+          APP_URL: ${{ vars.APP_URL }}
+        run: |
+          if [ -z "$APP_URL" ]; then
+            echo "::warning::APP_URL is not set; landing page links still point to https://app.example.com"
+            exit 0
+          fi
+          find site -type f \( -name '*.html' -o -name '*.txt' \) -print0 \
+            | xargs -0 sed -i "s|https://app.example.com|${APP_URL%/}|g"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
