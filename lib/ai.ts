@@ -1,4 +1,5 @@
 import type { AnalysisFacts } from "./domain";
+import { geminiConfigured, geminiJson } from "./gemini";
 import { inrP } from "./money";
 
 export interface Narrative {
@@ -18,6 +19,32 @@ Return strict JSON: {"headline": "max 7 words", "summary": "2 sentences, max 55 
 
 export async function narrate(facts: AnalysisFacts): Promise<Narrative> {
   const compact = compactFacts(facts);
+
+  if (geminiConfigured()) {
+    try {
+      const parsed = await geminiJson<{ headline?: string; summary?: string }>({
+        system: SYSTEM,
+        parts: [{ text: JSON.stringify(compact) }],
+        schema: {
+          type: "OBJECT",
+          properties: { headline: { type: "STRING" }, summary: { type: "STRING" } },
+          required: ["headline", "summary"],
+          propertyOrdering: ["headline", "summary"],
+        },
+        maxOutputTokens: 400,
+        timeoutMs: 12_000,
+      });
+      if (parsed?.headline && parsed?.summary) {
+        return {
+          engine: "Gemini",
+          headline: String(parsed.headline).slice(0, 90),
+          summary: String(parsed.summary).slice(0, 420),
+        };
+      }
+    } catch {
+      // fall through to the next provider, then the local analyst
+    }
+  }
 
   if (process.env.ANTHROPIC_API_KEY) {
     const apiKey = process.env.ANTHROPIC_API_KEY;

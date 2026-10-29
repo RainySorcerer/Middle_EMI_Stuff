@@ -158,13 +158,14 @@ export function importRows(
     direction: "debit" | "credit";
     dedupe_hash: string;
   }[],
-  accountId?: string | null
+  accountId?: string | null,
+  source: "csv" | "pdf" = "csv"
 ): number {
   const db = getDb();
   const stmt = db.prepare(
     `INSERT OR IGNORE INTO transactions (id, user_id, account_id, occurred_on, description,
       merchant, amount_paise, direction, category, source, dedupe_hash, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'csv', ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
   let inserted = 0;
   db.exec("BEGIN");
@@ -180,6 +181,7 @@ export function importRows(
         item.amount_paise,
         item.direction,
         item.category,
+        source,
         item.dedupe_hash,
         nowIso()
       );

@@ -10,9 +10,9 @@ A focused full-stack personal-finance app for India:
 
 1. Create an account with email and password, using a single-use invite code.
 2. Complete a four-step questionnaire.
-3. Upload a bank/UPI CSV, add transactions manually, or load sample data.
+3. Upload a bank/UPI CSV, or a PDF statement (Gemini reads it), add transactions manually, or load sample data.
 4. Get a dashboard, a 100-point health score, and ranked insights computed from those records.
-5. Optionally generate a written report through Claude/OpenAI; otherwise a local rules analyst writes it.
+5. Optionally generate a written report through Gemini/Claude/OpenAI; otherwise a local rules analyst writes it.
 
 The old demo routes (`/report`, `/leaks`, `/cards`, `/tools`, `/history`, `/profile`) and their components were removed.
 
@@ -94,6 +94,50 @@ Verified in this pass: typecheck, production build, invite hash parity between C
 
 Still not in the repo: the Playwright/axe suites. See `docs/known-bugs.md`.
 
+### PDF statements + Gemini (29 Oct, 17:00)
+
+PDF import was added on top of the beta cut. It is the only feature that sends
+user data to a third party, and it is opt-in twice: the server needs
+`GEMINI_API_KEY`, and the user must tick the AI notice on every upload.
+
+- `lib/gemini.ts` — minimal `generateContent` REST client (`x-goog-api-key`,
+  JSON response mode, timeout, friendly error mapping). Used by PDF import and
+  by narration. `GEMINI_API_BASE` exists only so tests can point at a local stub.
+- `lib/pdf.ts` — opens the PDF with `pdfjs-dist`, detects encryption, retries
+  with the supplied password, and either sends the file as `inlineData` (plain
+  or scanned PDF) or a page-by-page layout text with `[x]token` prefixes
+  (decrypted PDF, because Gemini cannot open encrypted files). Limits: 8 MB,
+  24 pages, 2,000 rows, 90k layout characters.
+- Rows go through `parseDate`/`parseAmount`/`dedupeKey` from `lib/csv.ts`, so PDF
+  and CSV imports share normalisation and duplicate detection. `importRows` now
+  takes a `source` (`csv` | `pdf`) and activity shows `· pdf`.
+- `app/actions/data.ts` — `importCsvAction` became `importStatementAction`.
+  PDF path checks key, consent, size, then rate-limits 10 PDFs/user/hour;
+  each `PdfError` code maps to a specific user-facing message.
+- `components/app/upload-form.tsx` — accepts `.pdf`, reveals a password field
+  and a required consent checkbox only for PDFs.
+- `next.config.mjs` — `serverExternalPackages: ["pdfjs-dist"]` and a 12 MB
+  server-action body limit.
+- `lib/ai.ts` — provider order is now Gemini → Claude → OpenAI, then the local
+  analyst. Only narration facts are sent, never statements.
+
+Verified with a mock Gemini server and a locally generated PDF plus an RC4
+password-protected copy: plain PDF imports 3 valid rows and skips malformed and
+duplicate ones, re-upload inserts 0, missing password → prompt, wrong password
+→ distinct error, correct password → decrypted text mode, fake PDF → unreadable,
+missing consent → blocked, CSV still imports 20 rows, `source` stored as `pdf`,
+and the API key header is sent. **Not yet tested against the real Google API**
+(no key in this environment).
+
+Two pdf.js gotchas worth remembering:
+
+1. `getDocument` transfers/detaches the input buffer to its worker. Always pass
+   `new Uint8Array(bytes)` per attempt, or a second attempt throws
+   `DataCloneError` (code 25) instead of a password error.
+2. `isEvalSupported` is not in the `DocumentInitParameters` type for this
+   version; it was removed from the call. The standard-fonts warning is harmless
+   and silenced by `standardFontDataUrl`.
+
 
 ## Key implementation decisions
 
@@ -120,7 +164,7 @@ Still not in the repo: the Playwright/axe suites. See `docs/known-bugs.md`.
 | Settings | `app/(app)/settings/page.tsx` |
 | Export | `app/api/export/route.ts` |
 
-Core libs: `lib/auth.ts`, `lib/db.ts`, `lib/store.ts`, `lib/analytics.ts`, `lib/csv.ts`, `lib/categorize.ts`, `lib/ai.ts`, `lib/money.ts`, `lib/finance.ts`.
+Core libs: `lib/auth.ts`, `lib/db.ts`, `lib/store.ts`, `lib/analytics.ts`, `lib/csv.ts`, `lib/pdf.ts`, `lib/gemini.ts`, `lib/categorize.ts`, `lib/ai.ts`, `lib/money.ts`, `lib/finance.ts`.
 
 ## Verification fixtures
 
@@ -140,25 +184,26 @@ The maintained list lives in [`docs/known-bugs.md`](docs/known-bugs.md). Highlig
 
 1. **Tests are external.** There is no checked-in test runner. Next priority: unit tests for `lib/csv.ts`, `lib/analytics.ts` scoring/ranking, `lib/invites.ts`, and `lib/finance.ts` maths, then move the Playwright flow into the repo.
 2. **SQLite is single-instance.** Fine for one Node process with a persistent volume. For horizontal scaling, migrate to Postgres and keep the query layer isolated in `lib/store.ts`.
-3. **No bank sync.** CSV and manual entry only. Account Aggregator or bank integrations are intentionally out of scope for this pass.
-4. **AI keys are optional and unverified in this environment.** The fallback path is tested; provider calls should be tested with real keys before launch.
+3. **No bank sync.** CSV, PDF and manual entry only. Account Aggregator or bank integrations are intentionally out of scope for this pass.
+4. **AI keys are optional and unverified in this environment.** The fallback path is tested; Gemini PDF extraction was only tested against a local stub. Try one real statement before inviting users.
 5. **No email verification or password reset.** Add both before a public launch, plus email delivery and token expiry.
-6. **No rate-limit backing store.** Auth actions have local in-process limiting; use Redis or a shared store if running multiple instances.
-7. **CSV coverage is heuristic.** Add fixtures from real HDFC/ICICI/SBI/Axis/UPI exports and grow `lib/csv.ts` from failures.
+6. **No rate-limit backing store.** Auth and PDF actions have local in-process limiting; use Redis or a shared store if running multiple instances.
+7. **CSV and PDF coverage is heuristic.** Add fixtures from real HDFC/ICICI/SBI/Axis/UPI exports and grow `lib/csv.ts` from failures; keep a few real PDFs for prompt regression.
 8. **No dark mode**, and the interface is English-only.
 9. **Invites are CLI-only and shown once.** No admin UI, no email delivery; revoke and reissue a lost code.
 
 ## Suggested next steps
 
-1. Add `node:test` (or Vitest) and cover the CSV parser, scoring, ranking, goal gap and money formatting.
+1. Add `node:test` (or Vitest) and cover the CSV parser, PDF row validation, scoring, ranking, goal gap and money formatting.
 2. Add password reset and email verification.
 3. Move the Playwright flow into `tests/e2e` and run it in CI against `npm run build && npm run start`.
-4. Add real bank CSV fixtures and a parser failure report in the UI.
-5. Before public deployment: HTTPS, persistent volume for `data/`, backup/restore procedure for SQLite, and a shared rate-limit store if scaling beyond one instance.
+4. Add real bank CSV and PDF fixtures and a parser failure report in the UI.
+5. Try PDF import with a real `GEMINI_API_KEY` on three bank formats (HDFC, ICICI, a UPI app) and tune the prompt before inviting users.
+6. Before public deployment: HTTPS, persistent volume for `data/`, backup/restore procedure for SQLite, and a shared rate-limit store if scaling beyond one instance.
 
 ## Cleanup notes
 
 - Old demo files were deleted; do not resurrect `lib/data.ts` or the old route groups.
 - `.next-*/` build directories and `data/` are gitignored.
-- `next.config.mjs` keeps security headers and a 3 MB server-action body limit.
+- `next.config.mjs` keeps security headers and a 12 MB server-action body limit (8 MB PDFs plus multipart overhead).
 - The landing page and insights report use dark green panels. Global `h1–h4` colors default to dark ink, so any heading on a dark panel needs an explicit light text class.

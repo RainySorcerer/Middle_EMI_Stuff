@@ -15,8 +15,8 @@ row says so. Severity is about impact on a beta user, not on a public launch.
 | 4 | Medium | Records | **Rows beyond 5,000 are silently omitted.** `loadRawData` and `/api/export` both cap at 5,000 transactions (`lib/store.ts:74`, `app/api/export/route.ts:11`). The activity page has no pagination, so older rows simply disappear from the list and from the export. |
 | 5 | Medium | Auth | **Rate limiting is per process and memory-only** (`lib/validate.ts:38`). It resets on every deploy, is not shared between instances, and does nothing to stop a distributed attempt. Login is limited per email address, not per IP. |
 | 6 | Medium | Resilience | **No `error.tsx` / `not-found.tsx` / `loading.tsx`.** Any unhandled exception shows Next's default 500 page instead of something a person can act on. |
-| 7 | Medium | CSV import | **Parsing is heuristic.** Files are capped at 2 MB, only CSV (no XLSX or PDF statements), headers must contain a date and description column, and ambiguous `03/04/2026` dates are read as **dd/mm/yyyy**. Real HDFC/ICICI/SBI/Axis exports with unusual footers, multi-line narrations or amount suffixes can lose rows; the UI reports skipped rows but not which ones. |
-| 8 | Medium | AI narration | **Provider failures are silent.** If Claude or OpenAI times out, returns malformed JSON or the key is wrong, the report quietly falls back to the rules analyst and the UI shows no reason. Every regeneration is a billed call; there is no caching or per-user quota. |
+| 7 | Medium | CSV import | **Parsing is heuristic.** Files are capped at 2 MB, headers must contain a date and description column, and ambiguous `03/04/2026` dates are read as **dd/mm/yyyy**. Real HDFC/ICICI/SBI/Axis exports with unusual footers, multi-line narrations or amount suffixes can lose rows; the UI reports skipped rows but not which ones. |
+| 8 | Medium | AI narration | **Provider failures are silent.** If Gemini, Claude or OpenAI times out, returns malformed JSON or the key is wrong, the report quietly falls back to the rules analyst and the UI shows no reason. Every regeneration is a billed call; there is no caching or per-user quota. |
 | 9 | Medium | Security headers | No **Content-Security-Policy** and no **Strict-Transport-Security**. `X-Frame-Options`, `nosniff`, `Referrer-Policy` and `Permissions-Policy` are set. |
 | 10 | Medium | Dates | **Month boundaries follow the server's timezone.** "This month" uses local time (`lib/analytics.ts:68`) while transaction dates are date-only strings. On a UTC server an IST user can see the previous month for the first 5½ hours of a new month. Set `TZ=Asia/Kolkata` on the host. |
 
@@ -33,6 +33,9 @@ row says so. Severity is about impact on a beta user, not on a public launch.
 | 17 | Low | Data | Sample data is tagged `source='sample'` and removable, but importing a real statement while sample data is loaded keeps both sets in the totals until the sample rows are removed. |
 | 18 | Low | Accessibility | axe-core reports 0 WCAG 2.1 A/AA violations on the main routes at 390 px, but the app has not been tested with a real screen reader, keyboard-only on every flow, or at 200% zoom. |
 | 19 | Low | Export | JSON export includes the full profile and transaction list. Data is protected by the host's disk and HTTPS in transit, not by encryption at rest inside the app. |
+| 20 | Medium | PDF import | **Extraction is model-assisted and unverified.** Gemini returns rows that are validated locally for date, amount and direction, but totals are not reconciled against the statement and faint or overlapping lines can be skipped. Plain PDFs (including scans) are uploaded to Google; only rows are stored. 8 MB / 24 pages / 2,000 rows / 10 imports per user per hour. There is no PDF path without `GEMINI_API_KEY`. |
+| 21 | Low | PDF import | **Encrypted scans do not work.** A password-protected PDF is decrypted locally and only its text layer is sent, so a locked image-only statement fails with "no machine-readable text". The user has to export a CSV or unlock and re-save the file. |
+| 22 | Low | AI narration | **Gemini is now tried first, then Claude, then OpenAI.** Only the first configured provider is used; a provider that fails falls straight through to the local analyst (see #8). PDF calls disable Gemini "thinking" and cap output at 8,192 tokens, so very long statements can truncate and fail rather than split across calls. |
 
 ## Fixed in this cut
 
@@ -40,6 +43,8 @@ row says so. Severity is about impact on a beta user, not on a public launch.
 - Emergency-fund insight hard-coded "six months" instead of computing the shortfall — fixed in the previous pass.
 - Duplicate CSV uploads double-counting — fixed with per-user dedupe hashes.
 - Unauthenticated signup — now gated by single-use invite codes by default.
+- Password-protected PDFs failing with `DataCloneError` on the second open attempt — pdf.js now gets a fresh copy of the buffer per attempt.
+- PDF imports with no AI consent silently leaving the server — now blocked before the file is read.
 
 ## Checklist before opening signup to the public
 

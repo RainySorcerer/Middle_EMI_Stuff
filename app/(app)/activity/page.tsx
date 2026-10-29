@@ -89,7 +89,7 @@ export default async function ActivityPage({
             </span>
             <div>
               <h2 className="text-[15px] font-semibold">Upload a statement</h2>
-              <p className="text-[11.5px] text-ink-500">CSV from your bank, UPI app or card</p>
+              <p className="text-[11.5px] text-ink-500">CSV or PDF from your bank, UPI app or card</p>
             </div>
           </div>
           <UploadForm accounts={accounts} />
@@ -214,7 +214,7 @@ export default async function ActivityPage({
                     <p className="text-[11px] text-ink-500">
                       <span className="sm:hidden">{formatShortDate(tx.occurred_on)} · </span>
                       {tx.category}
-                      {tx.source === "sample" ? " · sample" : tx.source === "csv" ? " · csv" : ""}
+                      {tx.source === "sample" ? " · sample" : tx.source === "csv" ? " · csv" : tx.source === "pdf" ? " · pdf" : ""}
                     </p>
                   </div>
                   <span className="order-3 hidden sm:order-none sm:block">

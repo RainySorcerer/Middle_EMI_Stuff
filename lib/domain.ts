@@ -70,7 +70,7 @@ export interface Transaction {
   amount_paise: number;
   direction: "debit" | "credit";
   category: Category;
-  source: "manual" | "csv" | "sample";
+  source: "manual" | "csv" | "sample" | "pdf";
   created_at: string;
 }
 

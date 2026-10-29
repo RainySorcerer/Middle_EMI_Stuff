@@ -48,6 +48,9 @@ PORT=3000
 TZ=Asia/Kolkata
 DATABASE_PATH=/var/lib/paisapilot/paisapilot.db
 BETA_INVITE_ONLY=true
+# PDF import + Gemini narration (get a key at https://aistudio.google.com/apikey)
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
 # ANTHROPIC_API_KEY=sk-ant-...
 # ANTHROPIC_MODEL=claude-sonnet-4-5
 ```
@@ -147,6 +150,7 @@ docker run -d --name paisapilot \
   -v paisapilot-data:/data \
   -e BETA_INVITE_ONLY=true \
   -e TZ=Asia/Kolkata \
+  -e GEMINI_API_KEY=your-key \
   --restart unless-stopped \
   paisapilot
 ```
@@ -164,6 +168,8 @@ services:
       TZ: Asia/Kolkata
       BETA_INVITE_ONLY: "true"
       DATABASE_PATH: /data/paisapilot.db
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: gemini-2.5-flash
     volumes:
       - paisapilot-data:/data
     healthcheck:
@@ -215,11 +221,29 @@ machine is a second writer against the same file.
 | `NODE_ENV` | Yes in prod | — | `production` makes cookies `secure`. |
 | `PORT` | No | `3000` | |
 | `TZ` | Recommended | system | `Asia/Kolkata` for correct month boundaries. |
+| `GEMINI_API_KEY` | No | unset | Enables PDF statement import and Gemini narration. Without it, PDF uploads are rejected and CSV still works. |
+| `GEMINI_MODEL` | No | `gemini-2.5-flash` | Any Gemini model that supports `generateContent` and PDF input. |
+| `GEMINI_API_BASE` | No | Google endpoint | Only for tests/stubs; leave unset in production. |
 | `ANTHROPIC_API_KEY` | No | unset | Enables Claude narration. |
-| `OPENAI_API_KEY` | No | unset | Used only if Anthropic is unset. |
+| `OPENAI_API_KEY` | No | unset | Used only if Gemini and Anthropic are unset. |
 | `BACKUP_KEEP` | No | `14` | How many backup files `scripts/backup.mjs` retains. |
 
 Never commit `.env`, `.env.production` or `data/`. All three are gitignored.
+
+### Gemini and PDF import
+
+- Get a key at <https://aistudio.google.com/apikey>, then set `GEMINI_API_KEY` in
+  the host environment. Treat it as a secret: it is only read server-side and is
+  never sent to the browser.
+- PDF uploads are 8 MB max. Next.js server actions are capped at `12mb` in
+  `next.config.mjs` to leave room for multipart overhead, so a reverse proxy in
+  front must allow at least that: `client_max_body_size 12m;` in nginx, or
+  Caddy's default (1 GB) is fine.
+- If the key is missing or invalid, uploads fail with a readable message and the
+  rest of the app keeps working. Set `GEMINI_API_KEY` to an empty value to
+  disable PDF import deliberately.
+- Decrypted PDFs are converted to layout text locally; the password itself is
+  never logged or stored. Plain PDFs and scans go to Gemini as a file.
 
 ---
 

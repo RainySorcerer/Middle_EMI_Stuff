@@ -15,13 +15,14 @@ export function EmptyRecords({ sample = false }: { sample?: boolean }) {
             Add your records to see the month
           </h2>
           <p className="mt-2 max-w-[46ch] text-[13.5px] leading-relaxed text-ink-600">
-            Upload a bank, UPI or card CSV and PaisaPilot groups every transaction, finds repeating
-            payments and scores your month. Prefer typing? Add a handful by hand.
+            Upload a bank, UPI or card statement as CSV or PDF and PaisaPilot groups every
+            transaction, finds repeating payments and scores your month. Prefer typing? Add a
+            handful by hand.
           </p>
           <div className="mt-5 flex flex-wrap items-center gap-2.5">
             <Link href="/activity#upload" className="btn-primary">
               <FileUp className="h-4 w-4" aria-hidden="true" />
-              Upload CSV
+              Upload a statement
             </Link>
             <Link href="/activity#manual" className="btn-secondary">
               <Plus className="h-4 w-4" aria-hidden="true" />

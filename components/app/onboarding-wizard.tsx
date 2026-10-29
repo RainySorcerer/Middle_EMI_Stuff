@@ -474,7 +474,7 @@ export function OnboardingWizard({
               <div className="animate-fade-up">
                 <StepHeading
                   title="Add your records"
-                  body="A CSV gives the best analysis. Manual entries work too — you can always add more later."
+                  body="A CSV or PDF gives the best analysis. Manual entries work too — you can always add more later."
                 />
 
                 <div className="mt-5 grid gap-4 xl:grid-cols-2">
@@ -484,7 +484,7 @@ export function OnboardingWizard({
                       Upload a statement
                     </p>
                     <p className="mt-0.5 text-[11.5px] text-ink-500">
-                      Bank, UPI, card or wallet CSV.
+                      Bank, UPI, card or wallet CSV or PDF.
                     </p>
                     <div className="mt-3">
                       <UploadForm accounts={accounts} compact />
